@@ -1,0 +1,88 @@
+using UnityEngine;
+using UnityEngine.InputSystem;
+using Networking.Network;
+
+namespace Networking
+{
+    public class NetworkManager : MonoBehaviour {
+        private static NetworkManager singleton;
+
+        public static string hostAddress;
+        public static string localAddress;
+
+        public static bool isHost;
+        public static bool isRunning;
+
+        static Server server;
+        static Client client;
+
+        public static InputActionMap controlBindings;
+
+        public int maxPlayers = 4;
+        public string playerPrefabPath = "Player";
+        public GameObject matchmakingMenu;
+
+        void Start() {
+            // setup singleton
+            if (singleton != null) {
+                Destroy(gameObject, 0);
+                return;
+            }
+            singleton = this;
+            DontDestroyOnLoad(gameObject);
+
+            // find control bindings
+            controlBindings = GetComponent<PlayerInput>().actions.FindActionMap("Player");
+
+            // initialize the platform api
+            Platform.API.Initialize();
+        }
+
+        void FixedUpdate() {
+            if (isRunning) {
+                client.FixedUpdate();
+                if (isHost) {
+                    server.FixedUpdate();
+                }
+            }
+        }
+
+        void Update() {
+            if (isRunning) {
+                client.Update();
+            }
+        }
+
+        public void CreateGame() {
+            isHost = true;
+            matchmakingMenu.SetActive(false);
+            Platform.API.CreateMatch(maxPlayers);
+        }
+
+        public static void OnJoiningGame() {
+            singleton.matchmakingMenu.SetActive(false);
+        }
+
+        public static void OnGameJoined() {
+            singleton.matchmakingMenu.SetActive(false);
+            if (isHost) {
+                server = new Server(singleton.playerPrefabPath);
+            }
+            client = new Client();
+            isRunning = true;
+        }
+
+        static void Stop() {
+            isHost = false;
+            isRunning = false;
+            server = null;
+            client = null;
+            singleton.matchmakingMenu.SetActive(true);
+        }
+
+        public static void OnConnectionError(string message) {
+            Debug.LogError(message);
+            Stop();
+        }
+    }
+}
