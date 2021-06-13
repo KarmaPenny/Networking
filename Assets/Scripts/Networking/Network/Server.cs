@@ -19,14 +19,6 @@ namespace Networking.Network
             // receive input from players
             ReceiveInput();
 
-            // spawn new players
-            foreach(string clientId in clients.Keys) {
-                if (!clients[clientId].spawned) {
-                    World.Spawn(NetworkManager.singleton.playerPrefabPath, clientId);
-                    clients[clientId].spawned = true;
-                }
-            }
-
             // update network objects
             foreach (NetworkObject networkObject in World.objects.Values) {
                 InputHistory input = null;
@@ -61,6 +53,7 @@ namespace Networking.Network
                 if (!clients.ContainsKey(response.address)) {
                     // start a few frames behind so new packets have time to come in and get sorted before they are needed
                     clients[response.address] = new ClientState(response.message.inputFrame - 5);
+                    World.Spawn(NetworkManager.singleton.playerPrefabPath, response.address);
                 }
 
                 if (response.message.inputFrame > clients[response.address].highestInputFrameReceived) {

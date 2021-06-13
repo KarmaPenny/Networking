@@ -4,7 +4,6 @@ namespace Networking.Network
 {
     public class ClientState
     {
-        public bool spawned;
         public int inputFrame;
         public Dictionary<int, InputState> input = new Dictionary<int, InputState>();
 
