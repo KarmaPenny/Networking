@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Networking.Network
 {
@@ -18,7 +19,7 @@ namespace Networking.Network
         World.State previousClientWorld = new World.State();
         World.State currentClientWorld = new World.State();
 
-        int highestWorldFrameReceived;
+        AsyncOperation sceneLoader = null;
 
         public void FixedUpdate() {
             // record the next input state
@@ -38,6 +39,15 @@ namespace Networking.Network
                 world[worldFrame] = world[worldFrame - 1];
             }
             World.state = world[worldFrame];
+
+            // load scene if it changed and we are not already loading a scene
+            if (!NetworkManager.isHost) {
+                if (world[worldFrame].scene != SceneManager.GetActiveScene().buildIndex && !NetworkManager.isLoading) {
+                    if (sceneLoader == null || sceneLoader.isDone) {
+                        sceneLoader = SceneManager.LoadSceneAsync(world[worldFrame].scene);
+                    }
+                }
+            }
 
             // predict next frame by replaying all player input not incorporated into the current world state
             if (world.ContainsKey(worldFrame - 300)) {
@@ -70,8 +80,6 @@ namespace Networking.Network
             // save world state for interpolation
             previousClientWorld = currentClientWorld;
             currentClientWorld = World.state;
-
-            //Debug.LogError("Client Status\nInput frame: " + inputFrame + " - " + inputOffset + "\nWorld frame: " + worldFrame + " - " + highestWorldFrameReceived);
         }
 
         public void Update()
@@ -101,10 +109,6 @@ namespace Networking.Network
                     synced = true;
                     worldFrame = response.message.worldFrame - 5;
                     world.Clear();
-                }
-
-                if (response.message.worldFrame > highestWorldFrameReceived ) {
-                    highestWorldFrameReceived = response.message.worldFrame;
                 }
 
                 // if we get way behind then jump back up

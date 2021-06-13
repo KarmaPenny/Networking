@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Networking.Network
 {
@@ -7,10 +8,12 @@ namespace Networking.Network
     {
         public class State : ISerializable
         {
+            public int scene = NetworkManager.singleton.onlineScene;
             public SortedDictionary<int, NetworkObject.State> objectStates = new SortedDictionary<int, NetworkObject.State>();
 
             public void Deserialize(Buffer buffer)
             {
+                scene = buffer.ReadInt();
                 while (!buffer.Empty)
                 {
                     NetworkObject.State objectState = new NetworkObject.State();
@@ -22,6 +25,7 @@ namespace Networking.Network
             public byte[] Serialize()
             {
                 Buffer buffer = new Buffer();
+                buffer.WriteInt(scene);
                 foreach (NetworkObject.State objectState in objectStates.Values)
                 {
                     buffer.WriteBytes(objectState.Serialize());
@@ -35,6 +39,7 @@ namespace Networking.Network
             get
             {
                 State s = new State();
+                s.scene = SceneManager.GetActiveScene().buildIndex;
                 foreach (NetworkObject networkGameObject in objects.Values)
                 {
                     NetworkObject.State objectState = networkGameObject.state;

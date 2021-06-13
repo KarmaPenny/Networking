@@ -90,6 +90,10 @@ namespace Networking
             }
         }
 
+        void Start() {
+            DontDestroyOnLoad(gameObject);
+        }
+
         public void NetworkUpdate(InputHistory input)
         {
             foreach (NetworkComponent component in components)

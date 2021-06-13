@@ -8,12 +8,6 @@ namespace Networking.Network
 
         int worldFrame = 0;
         Dictionary<int, World.State> world = new Dictionary<int, World.State>();
-        
-        string playerPrefabPath;
-
-        public Server(string playerPrefabPath) {
-            this.playerPrefabPath = playerPrefabPath;
-        }
 
         public void FixedUpdate() {
             // reset world state
@@ -28,7 +22,7 @@ namespace Networking.Network
             // spawn new players
             foreach(string clientId in clients.Keys) {
                 if (!clients[clientId].spawned) {
-                    World.Spawn(playerPrefabPath, clientId);
+                    World.Spawn(NetworkManager.singleton.playerPrefabPath, clientId);
                     clients[clientId].spawned = true;
                 }
             }
@@ -58,14 +52,6 @@ namespace Networking.Network
                 clients[clientAddress].RemoveOldInput();
                 clients[clientAddress].inputFrame++;
             }
-
-            // List<string> lines = new List<string>();
-            // lines.Add("Server Status");
-            // lines.Add("world frame = " + worldFrame);
-            // foreach (string clientAddress in clients.Keys) {
-            //     lines.Add(clientAddress + ": " + clients[clientAddress].inputFrame + " - " + clients[clientAddress].highestInputFrameReceived);
-            // }
-            // Debug.LogError(string.Join("\n", lines));
         }
 
         void ReceiveInput() {

@@ -1,17 +1,19 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using Networking.Network;
 
 namespace Networking
 {
     public class NetworkManager : MonoBehaviour {
-        private static NetworkManager singleton;
+        public static NetworkManager singleton;
 
         public static string hostAddress;
         public static string localAddress;
 
         public static bool isHost;
         public static bool isRunning;
+        public static bool isLoading;
 
         static Server server;
         static Client client;
@@ -19,6 +21,8 @@ namespace Networking
         public static InputActionMap controlBindings;
 
         public int maxPlayers = 4;
+        public int offlineScene = 0;
+        public int onlineScene = 1;
         public string playerPrefabPath = "Player";
         public GameObject matchmakingMenu;
 
@@ -66,7 +70,8 @@ namespace Networking
         public static void OnGameJoined() {
             singleton.matchmakingMenu.SetActive(false);
             if (isHost) {
-                server = new Server(singleton.playerPrefabPath);
+                server = new Server();
+                SceneManager.LoadSceneAsync(singleton.onlineScene);
             }
             client = new Client();
             isRunning = true;
