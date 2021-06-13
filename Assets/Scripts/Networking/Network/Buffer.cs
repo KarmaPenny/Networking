@@ -121,6 +121,10 @@ namespace Networking.Network
         #endregion
 
         #region byte[]
+        public byte[] ReadAll() {
+            return ReadBytes((int)(Length - Position));
+        }
+
         public byte[] ReadBytes(int count)
         {
             byte[] bytes = new byte[count];
