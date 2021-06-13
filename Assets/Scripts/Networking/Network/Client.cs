@@ -1,19 +1,12 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace Networking.Network
 {
     public class Client {
-        bool synced = false;
-
         int inputOffset = 0;
-
-        int inputFrame = 0;
-        Dictionary<int, InputState> input = new Dictionary<int, InputState>();
-
-        int worldFrame = 0;
-        Dictionary<int, World.State> world = new Dictionary<int, World.State>();
+        StateList<InputState> input = new StateList<InputState>();
+        StateList<World.State> world = new StateList<World.State>();
 
         // client predicted world states used to interpolate rendered frame
         World.State previousClientWorld = new World.State();
@@ -23,52 +16,33 @@ namespace Networking.Network
 
         public void FixedUpdate() {
             // record the next input state
-            if (input.ContainsKey(inputFrame - 300)) {
-                input.Remove(inputFrame - 300);
-            }
-            inputFrame++;
-            input[inputFrame] = InputState.GetCurrent();
+            input.Append(InputState.GetCurrent());
             SendInput();
 
             // reset world
             ReceiveWorldState();
-            if (!world.ContainsKey(worldFrame)) {
-                if (!world.ContainsKey(worldFrame - 1)) {
-                    world[worldFrame - 1] = new World.State();
-                }
-                world[worldFrame] = world[worldFrame - 1];
-            }
-            World.state = world[worldFrame];
+            World.state = world.GetCurrent();
 
             // load scene if it changed and we are not already loading a scene
             if (!NetworkManager.isHost) {
-                if (world[worldFrame].scene != SceneManager.GetActiveScene().buildIndex && !NetworkManager.isLoading) {
+                if (world.GetCurrent().scene != SceneManager.GetActiveScene().buildIndex && !NetworkManager.isLoading) {
                     if (sceneLoader == null || sceneLoader.isDone) {
-                        sceneLoader = SceneManager.LoadSceneAsync(world[worldFrame].scene);
+                        sceneLoader = SceneManager.LoadSceneAsync(world.GetCurrent().scene);
                     }
                 }
             }
 
             // predict next frame by replaying all player input not incorporated into the current world state
-            if (world.ContainsKey(worldFrame - 300)) {
-                world.Remove(worldFrame - 300);
-            }
-            worldFrame++;
-            for (int f = worldFrame - inputOffset; f <= inputFrame; f++)
+            world.frame++;
+            for (int f = world.frame - inputOffset; f <= input.topFrame; f++)
             {
                 // update objects that we own with our input
                 foreach (NetworkObject networkObject in World.objects.Values)
                 {
                     if (networkObject.owner == NetworkManager.localAddress)
                     {
-                        if (!input.ContainsKey(f - 1)) {
-                            input[f - 1] = new InputState();
-                        }
-                        if (!input.ContainsKey(f)) {
-                            input[f] = input[f - 1];
-                        }
-                        InputState previousInputState = input[f - 1];
-                        InputState currentInputState = input[f];
+                        InputState previousInputState = input.Get(f - 1);
+                        InputState currentInputState = input.Get(f);
                         networkObject.NetworkUpdate(new InputHistory(previousInputState, currentInputState));
                     }
                 }
@@ -92,37 +66,20 @@ namespace Networking.Network
         void SendInput()
         {
             Message<InputState> message = new Message<InputState>();
-            message.worldFrame = worldFrame;
-            message.inputFrame = inputFrame;
-            message.content = input[inputFrame];
+            message.worldFrame = world.frame;
+            message.inputFrame = input.topFrame;
+            message.content = input.GetTop();
             Platform.API.Send(message, NetworkManager.hostAddress, Channel.Input);
         }
 
         void ReceiveWorldState()
         {
-            Network.Response<World.State> response;
+            Response<World.State> response;
             while ((response = Platform.API.Receive<World.State>(Channel.World)) != null)
             {
-                // start a few frames behind the server to allow time for packets to arrive and get sorted
-                if (!synced)
-                {
-                    synced = true;
-                    worldFrame = response.message.worldFrame - 5;
-                    world.Clear();
-                }
-
-                // if we get way behind then jump back up
-                if (response.message.worldFrame > worldFrame + 10) {
-                    worldFrame = response.message.worldFrame - 5;
-                }
-
                 // calculate the offset from input frame to world frame
                 inputOffset = response.message.worldFrame - response.message.inputFrame;
-
-                // add the world frame unless it is too old to be of use
-                if (response.message.worldFrame >= worldFrame) {
-                    world[response.message.worldFrame] = response.message.content;
-                }
+                world.Add(response.message.worldFrame, response.message.content);
             }
         }
     }
