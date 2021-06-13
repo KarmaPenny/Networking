@@ -1,4 +1,3 @@
-using Networking.Network;
 using UnityEngine;
 
 namespace Networking {
