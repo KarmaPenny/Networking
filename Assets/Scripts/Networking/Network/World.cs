@@ -6,6 +6,12 @@ namespace Networking.Network
 {
     public static class World
     {
+        static int nextId;
+        public static SortedDictionary<int, NetworkObject> objects = new SortedDictionary<int, NetworkObject>();
+        
+        static Dictionary<string, GameObject> resourceCache = new Dictionary<string, GameObject>();
+        static AsyncOperation sceneLoader = null;
+
         public class State : ISerializable
         {
             public int scene = NetworkManager.singleton.onlineScene;
@@ -50,6 +56,16 @@ namespace Networking.Network
 
             set
             {
+                // dont load scene if we are the host because the server already loaded it
+                if (!NetworkManager.isHost) {
+                    // if scene has changed
+                    if (value.scene != SceneManager.GetActiveScene().buildIndex) {
+                        // if we are not currently loading a scene
+                        if (sceneLoader == null || sceneLoader.isDone) {
+                            sceneLoader = SceneManager.LoadSceneAsync(value.scene);
+                        }
+                    }
+                }
                 List<int> ids = new List<int>(value.objectStates.Keys);
                 foreach (int id in ids)
                 {
@@ -73,18 +89,13 @@ namespace Networking.Network
             }
         }
 
-        static int nextId;
-        public static SortedDictionary<int, NetworkObject> objects = new SortedDictionary<int, NetworkObject>();
-
-        // cache loaded resource for faster load times of frequently spawned objects
-        static Dictionary<string, GameObject> cache = new Dictionary<string, GameObject>();
         public static GameObject Load(string path)
         {
-            if (!cache.ContainsKey(path))
+            if (!resourceCache.ContainsKey(path))
             {
-                cache[path] = Resources.Load<GameObject>(path);
+                resourceCache[path] = Resources.Load<GameObject>(path);
             }
-            return cache[path];
+            return resourceCache[path];
         }
 
         public static GameObject Spawn(string path, string owner) {

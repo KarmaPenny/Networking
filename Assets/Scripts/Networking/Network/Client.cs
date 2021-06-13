@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace Networking.Network
 {
@@ -12,8 +11,6 @@ namespace Networking.Network
         World.State previousClientWorld = new World.State();
         World.State currentClientWorld = new World.State();
 
-        AsyncOperation sceneLoader = null;
-
         public void FixedUpdate() {
             // record the next input state
             input.Append(InputState.GetCurrent());
@@ -22,15 +19,6 @@ namespace Networking.Network
             // reset world
             ReceiveWorldState();
             World.state = world.GetCurrent();
-
-            // load scene if it changed and we are not already loading a scene
-            if (!NetworkManager.isHost) {
-                if (world.GetCurrent().scene != SceneManager.GetActiveScene().buildIndex && !NetworkManager.isLoading) {
-                    if (sceneLoader == null || sceneLoader.isDone) {
-                        sceneLoader = SceneManager.LoadSceneAsync(world.GetCurrent().scene);
-                    }
-                }
-            }
 
             // predict next frame by replaying all player input not incorporated into the current world state
             world.frame++;
