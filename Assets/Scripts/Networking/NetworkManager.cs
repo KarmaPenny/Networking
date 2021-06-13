@@ -13,7 +13,6 @@ namespace Networking
 
         public static bool isHost;
         public static bool isRunning;
-        public static bool isLoading;
 
         static Server server;
         static Client client;
