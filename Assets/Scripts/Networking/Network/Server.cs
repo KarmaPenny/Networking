@@ -59,7 +59,7 @@ namespace Networking.Network
                 topClientFrame = clientStates[address].topFrame,
                 worldState = world.GetTop(),
             };
-            serverStates[address].Append(state);
+            serverStates[address].Add(world.topFrame, state);
 
             int referenceFrame = clientStates[address].GetTop().topServerFrame;
 

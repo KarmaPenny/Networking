@@ -9,16 +9,14 @@ namespace Networking.Network {
         public Message(StateList<T> states, int referenceFrame) {
             this.referenceFrame = referenceFrame;
             byte[] data = states.GetTop().Serialize();
-            // byte[] referenceData = states.Get(referenceFrame).Serialize();
-            // compressedData = Compression.DeltaCompress(data, referenceData);
-            compressedData = data;
+            byte[] referenceData = states.Get(referenceFrame).Serialize();
+            compressedData = Compression.DeltaCompress(data, referenceData);
         }
 
         public T GetContent(StateList<T> states) {
-            // byte[] referenceData = states.Get(referenceFrame).Serialize();
-            // byte[] data = Compression.DeltaDecompress(compressedData, referenceData);
-            // Buffer buffer = new Buffer(data);
-            Buffer buffer = new Buffer(compressedData);
+            byte[] referenceData = states.Get(referenceFrame).Serialize();
+            byte[] data = Compression.DeltaDecompress(compressedData, referenceData);
+            Buffer buffer = new Buffer(data);
             T result = new T();
             result.Deserialize(buffer);
             return result;

@@ -2,7 +2,6 @@ namespace Networking.Network {
     public class ClientState : ISerializable {
         public int clientFrame;
         public int topServerFrame;
-        // TODO: add character state
         public InputState inputState = new InputState();
 
         public byte[] Serialize() {

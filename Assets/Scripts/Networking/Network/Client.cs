@@ -66,6 +66,10 @@ namespace Networking.Network
             Response<ServerState> response;
             while ((response = Platform.API.Receive<ServerState>(Channel.ServerState)) != null)
             {
+                // ignore messages from previous connections
+                if (response.message.referenceFrame > serverState.topFrame) {
+                    continue;
+                }
                 ServerState state = response.message.GetContent(serverState);
                 serverState.Add(state.serverFrame, state);
             }

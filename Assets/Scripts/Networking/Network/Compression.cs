@@ -10,11 +10,11 @@ namespace Networking.Network {
             return LZ4Pickler.Unpickle(data);
         }
 
-        private static byte[] Delta(byte[] data1, byte[] data2) {
-            byte[] delta = new byte[data1.Length];
+        private static byte[] Delta(byte[] data, byte[] referenceData) {
+            byte[] delta = new byte[data.Length];
             for (int i = 0; i < delta.Length; i++) {
-                byte b = (i < data2.Length) ? data2[i] : (byte)0;
-                delta[i] = (byte)(data1[i] ^ b);
+                byte b = (i < referenceData.Length) ? referenceData[i] : (byte)0;
+                delta[i] = (byte)(data[i] ^ b);
             }
             return delta;
         }
