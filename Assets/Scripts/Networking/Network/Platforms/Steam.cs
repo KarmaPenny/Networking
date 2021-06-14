@@ -40,19 +40,8 @@ namespace Networking.Network.Platforms.Steam {
         private void OnLobbyEnter(LobbyEnter_t callback) {
             CSteamID lobbyId = new CSteamID(callback.m_ulSteamIDLobby);
 
-            // if we are the host then set the host address in the lobby to point to us so that clients know where to connect
-            if (NetworkManager.isHost) {
-                if (!SteamMatchmaking.SetLobbyData(lobbyId, "hostAddress", NetworkManager.localAddress)) {
-                    NetworkManager.OnConnectionError("Failed to set host address");
-                    return;
-                }
-            }
-
             // get the host address from the lobby so we know where to connect
-            NetworkManager.hostAddress = SteamMatchmaking.GetLobbyData(lobbyId, "hostAddress");
-            if (NetworkManager.hostAddress == "") {
-                NetworkManager.OnConnectionError("Failed to get host address");
-            }
+            NetworkManager.hostAddress = SteamMatchmaking.GetLobbyOwner(lobbyId).ToString();
             
             // let the manager know we have joined
             NetworkManager.OnGameJoined();
