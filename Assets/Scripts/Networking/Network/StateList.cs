@@ -39,6 +39,10 @@ namespace Networking.Network {
             return Get(topFrame);
         }
 
+        public T GetBottom() {
+            return Get(topFrame - capacity + 1);
+        }
+
         public void Append(T state) {
             Add(topFrame + 1, state);
         }

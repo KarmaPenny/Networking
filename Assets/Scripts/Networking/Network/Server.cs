@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Networking.Network
 {
     public class Server {
-        Dictionary<string, StateList<ClientState>> clientStates = new Dictionary<string, StateList<ClientState>>();
+        public Dictionary<string, StateList<ClientState>> clientStates = new Dictionary<string, StateList<ClientState>>();
         Dictionary<string, StateList<ServerState>> serverStates = new Dictionary<string, StateList<ServerState>>();
         StateList<World.State> world = new StateList<World.State>();
 
@@ -12,18 +12,24 @@ namespace Networking.Network
             // reset world state
             World.state = world.GetTop();
 
+            // set netowrk time
+            NetworkManager.time = world.topFrame * Time.fixedDeltaTime;
+
             // receive client states
             ReceiveClientState();
 
             // update network objects
-            foreach (NetworkObject networkObject in World.objects.Values) {
-                InputHistory input = null;
-                if (clientStates.ContainsKey(networkObject.owner)) {
-                    InputState previousInputState = clientStates[networkObject.owner].GetPrevious().inputState;
-                    InputState currentInputState = clientStates[networkObject.owner].GetCurrent().inputState;
-                    input = new InputHistory(previousInputState, currentInputState);
+            List<NetworkObject> networkObjects = new List<NetworkObject>(World.objects.Values);
+            foreach (NetworkObject networkObject in networkObjects) {
+                if (networkObject.gameObject.activeSelf) {
+                    InputHistory input = null;
+                    if (clientStates.ContainsKey(networkObject.owner)) {
+                        InputState previousInputState = clientStates[networkObject.owner].GetPrevious().inputState;
+                        InputState currentInputState = clientStates[networkObject.owner].GetCurrent().inputState;
+                        input = new InputHistory(previousInputState, currentInputState);
+                    }
+                    networkObject.NetworkUpdate(input);
                 }
-                networkObject.NetworkUpdate(input);
             }
 
             // run physics
@@ -45,7 +51,7 @@ namespace Networking.Network
                 if (!clientStates.ContainsKey(response.address)) {
                     clientStates[response.address] = new StateList<ClientState>();
                     serverStates[response.address] = new StateList<ServerState>();
-                    World.Spawn(NetworkManager.singleton.playerPrefabPath, response.address);
+                    World.Spawn(NetworkManager.singleton.playerPrefabPath, response.address, -1);
                 }
                 ClientState state = response.message.GetContent(clientStates[response.address]);
                 clientStates[response.address].Add(state.clientFrame, state);

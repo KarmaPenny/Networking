@@ -1,34 +1,37 @@
 ﻿using UnityEngine;
 
-namespace Networking
-{
-    public class SyncTransform : NetworkComponent
-    {
-        [Sync]
-        public Vector3 Position
-        {
-            get
-            {
+namespace Networking {
+    public class SyncTransform : NetworkComponent {
+        [Sync] public Vector3 Position {
+            get {
                 return transform.position;
             }
 
-            set
-            {
+            set {
                 transform.position = value;
             }
         }
 
-        [Sync]
-        public Quaternion Rotation
-        {
-            get
-            {
+        [Sync] public Quaternion Rotation {
+            get {
                 return transform.rotation;
             }
 
-            set
-            {
+            set {
                 transform.rotation = value;
+            }
+        }
+
+        [Sync] public Vector3 Velocity {
+            get {
+                return Vector3.zero;
+            }
+
+            set {
+                Rigidbody rb = GetComponent<Rigidbody>();
+                if (rb != null) {
+                    rb.velocity = value;
+                }
             }
         }
     }

@@ -13,9 +13,11 @@ namespace Networking
 
         public static bool isHost;
         public static bool isRunning;
+        public static bool isServer;
+        public static float time;
 
-        static Server server;
-        static Client client;
+        public static Server server;
+        public static Client client;
 
         public static InputActionMap controlBindings;
 
@@ -43,8 +45,10 @@ namespace Networking
 
         void FixedUpdate() {
             if (isRunning) {
+                isServer = false;
                 client.FixedUpdate();
                 if (isHost) {
+                    isServer = true;
                     server.FixedUpdate();
                 }
             }

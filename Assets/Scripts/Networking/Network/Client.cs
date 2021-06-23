@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Networking.Network
@@ -6,32 +7,38 @@ namespace Networking.Network
         StateList<ClientState> clientState = new StateList<ClientState>();
         StateList<ServerState> serverState = new StateList<ServerState>();
 
+        int prevSpawnId;
+        public int spawnId;
+
         // client predicted world states used to interpolate rendered frame
         World.State previousClientWorld = new World.State();
         World.State currentClientWorld = new World.State();
 
         public void FixedUpdate() {
-            // update client state
-            clientState.Append(new ClientState() {
-                clientFrame = clientState.topFrame + 1,
-                topServerFrame = serverState.GetTop().serverFrame,
-                inputState = InputState.GetCurrent(),
-            });
-            SendClientState();
-
             // reset world
             ReceiveServerState();
             World.state = serverState.GetCurrent().worldState;
 
+            // update client state
+            clientState.Append(new ClientState() {
+                clientFrame = clientState.topFrame + 1,
+                topServerFrame = serverState.GetTop().serverFrame,
+                nextSpawnId = prevSpawnId,
+                inputState = InputState.GetCurrent(),
+            });
+            SendClientState();
+
             // predict next frame by replaying all player input not incorporated into the current world state
             serverState.frame++;
-            for (int f = serverState.GetCurrent().clientFrame; f <= clientState.topFrame; f++)
-            {
+            spawnId = clientState.Get(serverState.GetCurrent().clientFrame).nextSpawnId;
+            for (int f = serverState.GetCurrent().clientFrame; f <= clientState.topFrame; f++) {
+                // set network time
+                NetworkManager.time = (serverState.frame + f - serverState.GetCurrent().clientFrame) * Time.fixedDeltaTime;
+
                 // update objects that we own with our input
-                foreach (NetworkObject networkObject in World.objects.Values)
-                {
-                    if (networkObject.owner == NetworkManager.localAddress)
-                    {
+                List<NetworkObject> networkObjects = new List<NetworkObject>(World.objects.Values);
+                foreach (NetworkObject networkObject in networkObjects) {
+                    if (networkObject.gameObject.activeSelf && networkObject.owner == NetworkManager.localAddress) {
                         InputState previousInputState = clientState.Get(f - 1).inputState;
                         InputState currentInputState = clientState.Get(f).inputState;
                         networkObject.NetworkUpdate(new InputHistory(previousInputState, currentInputState));
@@ -41,31 +48,31 @@ namespace Networking.Network
                 // simulate physics
                 Physics.Simulate(Time.fixedDeltaTime);
             }
+            prevSpawnId = spawnId;
 
             // save world state for interpolation
             previousClientWorld = currentClientWorld;
             currentClientWorld = World.state;
+
+            // remove despawned objects
+            World.GarbageCollect(serverState.GetBottom().worldState, serverState.GetTop().worldState);
         }
 
-        public void Update()
-        {
+        public void Update() {
             // interpolate world between most recent fixed frames to smooth things out
             float factor = 1 - ((Time.fixedTime - Time.time) / Time.fixedDeltaTime);
             World.Interpolate(previousClientWorld, currentClientWorld, factor);
         }
 
-        void SendClientState()
-        {
+        void SendClientState() {
             int referenceFrame = serverState.GetTop().topClientFrame;
             Message<ClientState> message = new Message<ClientState>(clientState, referenceFrame);
             Platform.API.Send(message, NetworkManager.hostAddress, Channel.ClientState);
         }
 
-        void ReceiveServerState()
-        {
+        void ReceiveServerState() {
             Response<ServerState> response;
-            while ((response = Platform.API.Receive<ServerState>(Channel.ServerState)) != null)
-            {
+            while ((response = Platform.API.Receive<ServerState>(Channel.ServerState)) != null) {
                 // ignore messages from previous connections
                 if (response.message.referenceFrame > serverState.topFrame) {
                     continue;

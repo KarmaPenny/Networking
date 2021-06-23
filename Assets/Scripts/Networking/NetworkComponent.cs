@@ -56,6 +56,8 @@ namespace Networking
             }
         }
 
+        public virtual void NetworkStart() {}
+        
         public virtual void NetworkUpdate(InputHistory input) { }
 
         public virtual void Interpolate(State prevState, State nextState, float factor)
@@ -92,6 +94,16 @@ namespace Networking
                 // set property value
                 property.SetValue(this, value);
             }
+        }
+    
+        public GameObject Spawn(string resource) {
+            NetworkObject networkObject = GetComponentInParent<NetworkObject>();
+            return World.Spawn(resource, networkObject.owner);
+        }
+
+        public void Despawn() {
+            NetworkObject networkObject = GetComponentInParent<NetworkObject>();
+            World.Despawn(networkObject);
         }
     }
 }
