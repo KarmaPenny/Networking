@@ -4,10 +4,8 @@ using System.Reflection;
 using UnityEngine;
 using Networking.Network;
 
-namespace Networking
-{
-    public class NetworkComponent : MonoBehaviour
-    {
+namespace Networking {
+    public class NetworkComponent : MonoBehaviour {
         public class State : SortedDictionary<string, object>, ISerializable
         {
             public void Deserialize(Networking.Network.Buffer buffer)
@@ -30,69 +28,75 @@ namespace Networking
             }
         }
 
-        public State state
-        {
-            get
-            {
+        public State state {
+            get {
                 State s = new State();
-                foreach (PropertyInfo property in GetType().GetProperties())
-                {
-                    // skip properties that are not tagged with the Sync attribute
-                    if (property.GetCustomAttribute<Sync>(true) == null)
-                    {
-                        continue;
-                    }
-                    s[property.Name] = property.GetValue(this);
+                foreach (string name in SyncVars.Keys) {
+                    s[name] = SyncVars[name].GetValue(this);
                 }
                 return s;
             }
 
-            set
-            {
-                foreach (string property in value.Keys)
-                {
-                    GetType().GetProperty(property).SetValue(this, value[property]);
+            set {
+                foreach (string name in value.Keys) {
+                    SyncVars[name].SetValue(this, value[name]);
                 }
+            }
+        }
+
+        private SortedDictionary<string, dynamic> syncVars = null;
+        private SortedDictionary<string, dynamic> SyncVars {
+            get {
+                if (syncVars == null) {
+                    syncVars = new SortedDictionary<string, dynamic>();
+                    Type t = GetType();
+                    foreach (PropertyInfo property in t.GetProperties()) {
+                        if (property.GetCustomAttribute<Sync>(true) != null) {
+                            syncVars[property.Name] = property;
+                        }
+                    }
+                    foreach (FieldInfo field in t.GetFields()) {
+                        if (field.GetCustomAttribute<Sync>(true) != null) {
+                            syncVars[field.Name] = field;
+                        }
+                    }
+                }
+                return syncVars;
             }
         }
 
         public virtual void NetworkStart() {}
         
-        public virtual void NetworkUpdate(InputHistory input) { }
+        public virtual void NetworkUpdate(InputHistory input) {}
 
-        public virtual void Interpolate(State prevState, State nextState, float factor)
-        {
-            Type type = GetType();
-            foreach (string propertyName in prevState.Keys)
-            {
-                PropertyInfo property = type.GetProperty(propertyName);
-                Type propertyType = property.GetType();
-                object prevValue = prevState[propertyName];
-                object nextValue = nextState[propertyName];
-
+        public virtual void Interpolate(State prevState, State nextState, float factor) {
+            foreach (string name in SyncVars.Keys) {
+                object prevValue = prevState[name];
+                object nextValue = nextState[name];
+                
                 // use prev value for types that do not interpolate (e.g. strings, bool, etc.)
                 object value = prevValue;
 
                 // interpolate various types
-                if (propertyType == typeof(float))
+                Type type = SyncVars[name].GetType();
+                if (type == typeof(float))
                 {
                     value = Mathf.Lerp((float)prevValue, (float)nextValue, factor);
                 }
-                else if (propertyType == typeof(Vector2))
+                else if (type == typeof(Vector2))
                 {
                     value = Vector2.Lerp((Vector2)prevValue, (Vector2)nextValue, factor);
                 }
-                else if (propertyType == typeof(Vector3))
+                else if (type == typeof(Vector3))
                 {
                     value = Vector3.Lerp((Vector3)prevValue, (Vector3)nextValue, factor);
                 }
-                else if (propertyType == typeof(Quaternion))
+                else if (type == typeof(Quaternion))
                 {
                     value = Quaternion.Lerp((Quaternion)prevValue, (Quaternion)nextValue, factor);
                 }
 
-                // set property value
-                property.SetValue(this, value);
+                SyncVars[name].SetValue(this, value);
             }
         }
     

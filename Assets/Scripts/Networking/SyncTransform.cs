@@ -24,6 +24,10 @@ namespace Networking {
 
         [Sync] public Vector3 Velocity {
             get {
+                Rigidbody rb = GetComponent<Rigidbody>();
+                if (rb != null) {
+                    return rb.velocity;
+                }
                 return Vector3.zero;
             }
 

@@ -5,6 +5,11 @@ namespace Networking {
         public InputState previousInputState;
         public InputState currentInputState;
 
+        public InputHistory() {
+            this.previousInputState = new InputState();
+            this.currentInputState = new InputState();
+        }
+
         public InputHistory(InputState previousInputState, InputState currentInputState) {
             this.previousInputState = previousInputState;
             this.currentInputState = currentInputState;
@@ -26,9 +31,13 @@ namespace Networking {
             return currentInputState.Get<Vector2>(action);
         }
 
-        public Vector3 GetVector3(string action) {
+        public Vector3 GetVector3(string action, Vector3 forward, Vector3 right) {
             Vector2 direction = currentInputState.Get<Vector2>(action);
-            return new Vector3(direction.x, 0, direction.y);
+            return direction.x * right + direction.y * forward;
+        }
+
+        public Vector3 GetVector3(string action) {
+            return GetVector3(action, Vector3.forward, Vector3.right);
         }
     }
 }

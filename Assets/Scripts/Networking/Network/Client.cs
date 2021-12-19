@@ -16,6 +16,7 @@ namespace Networking.Network
 
         public void FixedUpdate() {
             // reset world
+            // TODO: interpolate between predicted state and actual state to smooth descrepancies out
             ReceiveServerState();
             World.state = serverState.GetCurrent().worldState;
 
@@ -33,15 +34,24 @@ namespace Networking.Network
             spawnId = clientState.Get(serverState.GetCurrent().clientFrame).nextSpawnId;
             for (int f = serverState.GetCurrent().clientFrame; f <= clientState.topFrame; f++) {
                 // set network time
-                NetworkManager.time = (serverState.frame + f - serverState.GetCurrent().clientFrame) * Time.fixedDeltaTime;
+                NetworkManager.time = (serverState.frame - 1 + f - serverState.GetCurrent().clientFrame) * Time.fixedDeltaTime;
 
-                // update objects that we own with our input
+                // get our input history for this frame
+                InputState previousInputState = clientState.Get(f - 1).inputState;
+                InputState currentInputState = clientState.Get(f).inputState;
+                InputHistory input = new InputHistory(previousInputState, currentInputState);
+
+                // update all network objects
                 List<NetworkObject> networkObjects = new List<NetworkObject>(World.objects.Values);
                 foreach (NetworkObject networkObject in networkObjects) {
+                    // use our input for objects we own
                     if (networkObject.gameObject.activeSelf && networkObject.owner == NetworkManager.localAddress) {
-                        InputState previousInputState = clientState.Get(f - 1).inputState;
-                        InputState currentInputState = clientState.Get(f).inputState;
-                        networkObject.NetworkUpdate(new InputHistory(previousInputState, currentInputState));
+                        networkObject.NetworkUpdate(input);
+                    } 
+                    // use default input for objects we do not own
+                    // TODO: use previous input for players?
+                    else {
+                        networkObject.NetworkUpdate(new InputHistory());
                     }
                 }
 
