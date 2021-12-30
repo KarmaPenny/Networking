@@ -2,6 +2,11 @@ using UnityEngine;
 using Networking;
 
 public class Player : NetworkComponent {
+    // camera vars
+    new public Transform camera = null;
+    public float max_pitch = 80.0f;
+
+    // movement vars
     public float max_speed = 5;
     public float max_ground_acceleration = 50;
     public float max_air_acceleration = 10;
@@ -12,52 +17,65 @@ public class Player : NetworkComponent {
     private float radius = 0.75f;
     [HideInInspector, Sync] public float jump_start_time = 0;
 
-    public float GetGroundSlope() {
-        RaycastHit hit = new RaycastHit();
-        LayerMask ground = LayerMask.GetMask(new string[] { "Default" });
-        Ray ray = new Ray(transform.position + transform.up *(radius + Physics.defaultContactOffset), -transform.up);
-        if (!Physics.SphereCast(ray, radius, out hit, Physics.defaultContactOffset * 2, ground)) {
-            return -1;
+    class Ground {
+        public bool contacted;
+        public Vector3 normal;
+        public float slope;
+
+        public Ground(Transform transform, float radius) {
+            RaycastHit hit = new RaycastHit();
+            LayerMask groundLayer = LayerMask.GetMask("Default");
+            Ray ray = new Ray(transform.position + (transform.up * (radius + (10 * Physics.defaultContactOffset))), -transform.up);
+            contacted = Physics.SphereCast(ray, radius, out hit, 20 * Physics.defaultContactOffset, groundLayer);
+            normal = (contacted) ? hit.normal : transform.up;
+            slope = Vector3.Angle(normal, transform.up);
         }
-        return Vector3.Angle(hit.normal, transform.up);
     }
 
     public override void NetworkUpdate(InputHistory input) {
-        // check if player is on the ground
-        float slope = GetGroundSlope();
-        bool grounded = slope >= 0;
-        bool sliding = slope > max_slope;
+        // Apply look input to camera rotation and clamp pitch
+        Vector3 look = input.GetVector3("Look", -Vector3.right, Vector3.up) * Time.fixedDeltaTime;
+        Vector3 localRotation = camera.localRotation.eulerAngles + look;
+        float pitch = localRotation.x % 360.0f;
+        if (pitch > 180.0f) {
+            pitch -= 360.0f;
+        }
+        localRotation.x = Mathf.Clamp(pitch, -max_pitch, max_pitch);
+        camera.localRotation = Quaternion.Euler(localRotation);
+
+        // Find ground beneath player
+        Ground ground = new Ground(transform, radius);
         
         // get our current velocity excluding vertical motion
         Rigidbody rb = GetComponent<Rigidbody>();
-        Vector3 current_velocity = Vector3.ProjectOnPlane(rb.velocity, transform.up);
+        Vector3 current_velocity = Vector3.ProjectOnPlane(rb.velocity, ground.normal);
 
-        // get desired velocity from input using camera and transform oreintation
-        // TODO: use actual camera object
-        Vector3 camera_forward = Vector3.forward;
-        Vector3 forward = Vector3.ProjectOnPlane(camera_forward, transform.up).normalized;
-        Vector3 right = Vector3.Cross(transform.up, forward);
-        Vector3 desired_velocity = input.GetVector3("Move", forward, right) * max_speed;
+        // get desired velocity from input and camera orientation
+        // project onto transform up plane before ground plane to prevent going backwards on large slopes when looking down
+        Vector3 cameraForward = Vector3.ProjectOnPlane(camera.forward, transform.up);
+        cameraForward = Vector3.ProjectOnPlane(cameraForward, ground.normal).normalized;
+        Vector3 cameraRight = Vector3.ProjectOnPlane(camera.right, ground.normal).normalized;
+        Vector3 desired_velocity = input.GetVector3("Move", cameraForward, cameraRight) * max_speed;
 
         // accelerate towards desired velocity at a max acceleration rate
         Vector3 required_acceleration = (desired_velocity - current_velocity) / Time.fixedDeltaTime;
-        float max_acceleration = (grounded) ? max_ground_acceleration : max_air_acceleration;
+        float max_acceleration = (ground.contacted) ? max_ground_acceleration : max_air_acceleration;
         Vector3 acceleration = Vector3.ClampMagnitude(required_acceleration, max_acceleration);
         rb.AddForce(acceleration, ForceMode.Acceleration);
 
         // start jump
-        if (input.WasPressed("Fire") && grounded) {
+        if (input.WasPressed("Jump") && ground.contacted) {
             jump_start_time = NetworkManager.time;
             rb.AddForce(transform.up * jump_start_velocity, ForceMode.VelocityChange);
         }
 
         // stop jump
-        if (!input.IsPressed("Fire")) {
+        if (!input.IsPressed("Jump")) {
             jump_start_time = -100;
         }
 
         // apply jump force while jump is held up to max jump duration
-        if (input.IsPressed("Fire") && NetworkManager.time <= jump_start_time + max_jump_duration) {
+        if (input.IsPressed("Jump") && NetworkManager.time <= jump_start_time + max_jump_duration) {
             rb.AddForce(transform.up * Physics.gravity.magnitude, ForceMode.Acceleration);
         }
     }

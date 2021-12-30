@@ -92,5 +92,16 @@ namespace Networking
             Debug.LogError(message);
             Stop();
         }
+
+        // returns the local player object
+        public static GameObject GetLocalPlayer() {
+            foreach (GameObject p in GameObject.FindGameObjectsWithTag("Player")) {
+                NetworkObject netObj = p.GetComponent<NetworkObject>();
+                if (netObj.owner == localAddress) {
+                    return p;
+                }
+            }
+            return null;
+        }
     }
 }

@@ -246,6 +246,10 @@ MonoBehaviour:
       m_Calls: []
     m_ActionId: 90b64741-3a69-400f-8990-0589e2f9af9c
     m_ActionName: UI/TrackedDeviceOrientation
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 570eb700-0087-4fec-97af-1f3644c682d2
+    m_ActionName: Player/Look[/Mouse/delta]
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: 
   m_DefaultActionMap: Player
